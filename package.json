@@ -1,12 +1,13 @@
 {
-  "name": "jnvu-render-web",
+  "name": "jnvu-admit-card-portal",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "playwright": "^1.49.0"
+    "playwright": "^1.49.0",
+    "pdf-parse": "^1.1.1"
   }
 }
