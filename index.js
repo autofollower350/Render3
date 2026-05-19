@@ -9,12 +9,32 @@ const port = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 
-// --- Ab ye seedha index.html file ko bhejega ---
+// --- ग्लोबल ब्राउज़र वेरिएबल (ताकि बार-बार ब्राउज़र न खोलना पड़े) ---
+let browser;
+
+async function initBrowser() {
+    browser = await chromium.launch({ 
+        headless: true, 
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--no-first-run'
+        ] 
+    });
+    console.log("🚀 Global Browser Initialized and Ready!");
+}
+
+// सर्वर शुरू होते ही ब्राउज़र बैकग्राउंड में चालू हो जाएगा
+initBrowser();
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- PDF Extract Logic (Aapka Regex Code) ---
+// --- PDF Extract Logic (Same as yours) ---
 async function extractStudentInfo(pdfPath) {
     const info = { name: "Not Found", father: "Not Found", roll: "Not Found", center: "Not Found" };
     try {
@@ -46,7 +66,7 @@ async function extractStudentInfo(pdfPath) {
     }
 }
 
-// --- Download Route ---
+// --- Fast Download Route ---
 app.post('/download', async (req, res) => {
     const formNo = req.body.form_no;
     if (!formNo || !/^\d+$/.test(formNo)) {
@@ -54,37 +74,49 @@ app.post('/download', async (req, res) => {
     }
 
     const pdfPath = path.join(__dirname, `admit_card_${formNo}.pdf`);
-    let browser;
+    let context;
+    let page;
 
     try {
-        browser = await chromium.launch({ 
-            headless: true, 
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
-        });
-        const context = await browser.newContext({ acceptDownloads: true });
-        const page = await context.newPage();
+        // अगर किसी वजह से ब्राउज़र क्रैश हो गया हो तो दोबारा चालू करें
+        if (!browser) await initBrowser();
 
-        await page.route('**/*.{png,jpg,jpeg,gif,css,woff2}', route => route.abort());
+        // ब्राउज़र खोलने का टाइम बच गया, सीधा नया कॉन्टेक्स्ट और पेज खोलें
+        context = await browser.newContext({ acceptDownloads: true });
+        page = await context.newPage();
+
+        // ⚡ सुपर फास्ट ब्लॉकिंग: इमेज, सीएसएस, फॉन्ट और फालतू ट्रैकर स्क्रिप्ट्स सब ब्लॉक
+        await page.route('**/*', (route) => {
+            const requestType = route.request().resourceType();
+            if (['image', 'stylesheet', 'font', 'media', 'script'].includes(requestType)) {
+                return route.abort();
+            }
+            route.continue();
+        });
 
         const url = "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#";
-        await page.goto(url, { waitUntil: 'commit', timeout: 30000 });
         
-        await page.fill("#txtchallanNo", String(formNo));
+        // 'domcontentloaded' सबसे तेज़ होता है, यह पूरी वेबसाइट लोड होने का इंतज़ार नहीं करता
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
         
-        const submitBtn = page.locator("#btnGetResult");
-        const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
+        // बिना देरी किए फॉर्म भरना
+        await page.fill("#txtchallanNo", String(formNo), { force: true });
         
-        await submitBtn.click();
-        await page.waitForTimeout(500); 
-        await submitBtn.click(); 
+        const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+        
+        // ⚡ तेजी से क्लिक करना (बिना आधा सेकंड वेस्ट किए)
+        await page.click("#btnGetResult", { noWaitAfter: true }); 
 
         const download = await downloadPromise;
         await download.saveAs(pdfPath);
-        await browser.close();
+        
+        // सिर्फ पेज और कॉन्टेक्स्ट बंद करें, ब्राउज़र चालू रहेगा
+        await page.close();
+        await context.close();
 
         if (fs.existsSync(pdfPath)) {
             const studentData = await extractStudentInfo(pdfPath);
-            console.log(`\n✅ Downloaded for: ${studentData.name} | Roll: ${studentData.roll}\n`);
+            console.log(`\n✅ Downloaded: ${studentData.name} | Roll: ${studentData.roll}\n`);
 
             res.download(pdfPath, `JNVU_${formNo}.pdf`, () => {
                 if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); 
@@ -94,7 +126,8 @@ app.post('/download', async (req, res) => {
         }
 
     } catch (error) {
-        if (browser) await browser.close();
+        if (page) await page.close().catch(() => {});
+        if (context) await context.close().catch(() => {});
         res.send(`<h3>❌ Error: Admit Card nahi mila ya JNVU site down hai.</h3><p>${error.message}</p><a href='/'>Wapas Try Karein</a>`);
     }
 });
