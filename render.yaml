@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: jnvu-admit-card-portal
-    env: node
-    buildCommand: npm install && npx playwright install chromium
-    startCommand: npm start
