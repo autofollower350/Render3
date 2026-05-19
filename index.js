@@ -4,11 +4,10 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const port = process.env.PORT || 3000; // Render automatic port assign karta hai
+const port = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 
-// Front-end HTML design
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -21,7 +20,7 @@ app.get('/', (req, res) => {
                 .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
                 h2 { color: #333; margin-top: 0; }
                 input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center; }
-                button { width: 95%; padding: 12px; background: #ff4b4b; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+                button { width: 95%; padding: 12px; background: #ff4b4b; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
                 button:hover { background: #e04343; }
                 .footer { margin-top: 20px; font-size: 12px; color: #777; }
             </style>
@@ -29,7 +28,7 @@ app.get('/', (req, res) => {
         <body>
             <div class="card">
                 <h2>🚩 RajasthaniBoyz Portal</h2>
-                <p style="color:#666;">Apna JNVU Form Number dalo aur Admit Card direct download karo</p>
+                <p style="color:#666;">Apna JNVU Form Number dalo aur Admit Card download karo</p>
                 <form action="/download" method="POST">
                     <input type="text" name="form_no" placeholder="Enter Form / Challan Number" required><br>
                     <button type="submit">🚀 Get Admit Card</button>
@@ -41,13 +40,11 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Playwright automatic bypass aur download logic
 app.post('/download', async (req, res) => {
     const formNo = req.body.form_no;
     const pdfPath = path.join(__dirname, `AdmitCard_${formNo}.pdf`);
 
     try {
-        // Linux environment (Render) ke liye safe arguments
         const browser = await chromium.launch({ 
             headless: true, 
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
@@ -57,9 +54,8 @@ app.post('/download', async (req, res) => {
         
         await page.fill('#txtchallanNo', formNo);
         await page.press('#txtchallanNo', 'Enter');
-        await page.waitForTimeout(1500); // Wait for State sync
+        await page.waitForTimeout(1500);
 
-        // Download trigger aur handler
         const [download] = await Promise.all([
             page.waitForEvent('download', { timeout: 30000 }),
             page.click('#btnGetResult')
@@ -68,17 +64,15 @@ app.post('/download', async (req, res) => {
         await download.saveAs(pdfPath);
         await browser.close();
 
-        // User ke browser mein file send karo aur server se delete karo
         res.download(pdfPath, () => {
             if(fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
         });
 
     } catch (err) {
-        res.send("<h3>❌ Error: Record nahi mila ya JNVU site down hai. Form number sahi se check karein!</h3><br><a href='/'>Wapas Try Karein</a>");
+        res.send("<h3>❌ Error: Record nahi mila ya JNVU site down hai.</h3><br><a href='/'>Wapas Try Karein</a>");
     }
 });
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`Server running`);
 });
-
