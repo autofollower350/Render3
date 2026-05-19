@@ -9,12 +9,12 @@ const port = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 
-// --- Index Page ---
+// --- Ab ye seedha index.html file ko bhejega ---
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- PDF Extract Logic ---
+// --- PDF Extract Logic (Aapka Regex Code) ---
 async function extractStudentInfo(pdfPath) {
     const info = { name: "Not Found", father: "Not Found", roll: "Not Found", center: "Not Found" };
     try {
@@ -46,48 +46,36 @@ async function extractStudentInfo(pdfPath) {
     }
 }
 
-// --- Download Route (OPTIMIZED) ---
+// --- Download Route ---
 app.post('/download', async (req, res) => {
     const formNo = req.body.form_no;
     if (!formNo || !/^\d+$/.test(formNo)) {
-        return res.send("<h3>❌ Error: Invalid Form Number!</h3><a href='/'>Wapas Jao</a>");
+        return res.send("<h3>âŒ Error: Invalid Form Number!</h3><a href='/'>Wapas Jao</a>");
     }
 
     const pdfPath = path.join(__dirname, `admit_card_${formNo}.pdf`);
     let browser;
 
     try {
-        // [OPTIMIZATION 1]: Added '--disable-features=IsolateOrigins,site-per-process' to speed up chromium launch
         browser = await chromium.launch({ 
             headless: true, 
-            args: [
-                '--no-sandbox', 
-                '--disable-setuid-sandbox', 
-                '--disable-dev-shm-usage',
-                '--disable-features=IsolateOrigins,site-per-process'
-            ] 
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
         });
-        
         const context = await browser.newContext({ acceptDownloads: true });
         const page = await context.newPage();
 
-        // [OPTIMIZATION 2]: Aborting more heavy/unwanted assets (scripts, analytics, images)
-        await page.route('**/*.{png,jpg,jpeg,gif,css,woff2,ico}', route => route.abort());
-        await page.route('**/analytics/**', route => route.abort());
-        await page.route('**/google-analytics/**', route => route.abort());
+        await page.route('**/*.{png,jpg,jpeg,gif,css,woff2}', route => route.abort());
 
         const url = "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#";
-        
-        // [OPTIMIZATION 3]: 'commit' is good, but ensuring domcontentloaded can be faster for form filling
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.goto(url, { waitUntil: 'commit', timeout: 30000 });
         
         await page.fill("#txtchallanNo", String(formNo));
         
         const submitBtn = page.locator("#btnGetResult");
-        const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+        const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
         
-        // [OPTIMIZATION 4]: Removed double click and 500ms hard delay. 
-        // Single click with immediate download trigger is way faster and cleaner.
+        await submitBtn.click();
+        await page.waitForTimeout(500); 
         await submitBtn.click(); 
 
         const download = await downloadPromise;
@@ -96,18 +84,18 @@ app.post('/download', async (req, res) => {
 
         if (fs.existsSync(pdfPath)) {
             const studentData = await extractStudentInfo(pdfPath);
-            console.log(`\n✅ Downloaded for: ${studentData.name} | Roll: ${studentData.roll}\n`);
+            console.log(`\nâœ… Downloaded for: ${studentData.name} | Roll: ${studentData.roll}\n`);
 
             res.download(pdfPath, `JNVU_${formNo}.pdf`, () => {
                 if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); 
             });
         } else {
-            res.send("<h3>❌ Error: Admit Card file nahi mili.</h3><a href='/'>Wapas Try Karein</a>");
+            res.send("<h3>âŒ Error: Admit Card file nahi mili.</h3><a href='/'>Wapas Try Karein</a>");
         }
 
     } catch (error) {
         if (browser) await browser.close();
-        res.send(`<h3>❌ Error: Admit Card nahi mila ya JNVU site down hai.</h3><p>${error.message}</p><a href='/'>Wapas Try Karein</a>`);
+        res.send(`<h3>âŒ Error: Admit Card nahi mila ya JNVU site down hai.</h3><p>${error.message}</p><a href='/'>Wapas Try Karein</a>`);
     }
 });
 
