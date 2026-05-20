@@ -100,7 +100,7 @@ app.post('/download', async (req, res) => {
             "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#",
             {
                 waitUntil: 'domcontentloaded',
-                timeout: 10000
+                timeout: 15000
             }
         );
 
