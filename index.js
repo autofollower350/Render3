@@ -7,116 +7,128 @@ const port = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 
-// ---------------- GLOBAL BROWSER ----------------
-
 let browser;
 let context;
 
 (async () => {
+
     browser = await chromium.launch({
         headless: true,
+
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--no-first-run',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
             '--no-zygote',
-            '--single-process'
+            '--single-process',
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-sync',
+            '--mute-audio',
+            '--no-first-run',
+            '--disable-default-apps'
         ]
     });
 
     context = await browser.newContext({
-        acceptDownloads: true
+        acceptDownloads: true,
+
+        viewport: null,
+
+        javaScriptEnabled: true,
+
+        bypassCSP: true,
+
+        ignoreHTTPSErrors: true
     });
 
-    console.log("✅ Browser Ready");
-})();
+    console.log("🚀 Ultra Fast Browser Ready");
 
-// ---------------- HOME PAGE ----------------
+})();
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-// ---------------- DOWNLOAD ROUTE ----------------
 
 app.post('/download', async (req, res) => {
 
     const formNo = req.body.form_no;
 
     if (!formNo || !/^\d+$/.test(formNo)) {
-        return res.send(`
-            <h3>❌ Invalid Form Number</h3>
-            <a href="/">Wapas Jao</a>
-        `);
+        return res.send("Invalid Form Number");
     }
 
     let page;
 
     try {
 
-        // -------- NEW FAST TAB --------
+        // ---------- FAST TAB ----------
 
         page = await context.newPage();
 
-        // -------- BLOCK HEAVY FILES --------
+        // ---------- BLOCK HEAVY REQUESTS ----------
 
-        await page.route('**/*', (route) => {
+        await page.route('**/*', async (route) => {
 
-            const type = route.request().resourceType();
+            const request = route.request();
+            const type = request.resourceType();
+            const url = request.url();
+
+            // block useless files
 
             if (
                 type === 'image' ||
-                type === 'stylesheet' ||
+                type === 'media' ||
                 type === 'font' ||
-                type === 'media'
+                type === 'stylesheet' ||
+                url.includes('google') ||
+                url.includes('analytics') ||
+                url.includes('doubleclick')
             ) {
-                route.abort();
-            } else {
-                route.continue();
+                return route.abort();
             }
+
+            route.continue();
         });
 
-        // -------- WEBSITE --------
+        // ---------- ULTRA FAST LOAD ----------
 
-        const url =
-            "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#";
+        await page.goto(
+            "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#",
+            {
+                waitUntil: 'domcontentloaded',
+                timeout: 10000
+            }
+        );
 
-        await page.goto(url, {
-            waitUntil: 'domcontentloaded',
-            timeout: 15000
-        });
+        // ---------- NO EXTRA WAIT ----------
 
-        // -------- FORM FILL --------
-
-        await page.fill("#txtchallanNo", String(formNo));
+        await page.locator("#txtchallanNo").fill(formNo);
 
         const submitBtn = page.locator("#btnGetResult");
 
-        // -------- DOWNLOAD LISTENER --------
+        // ---------- START DOWNLOAD LISTENER ----------
 
         const downloadPromise = page.waitForEvent('download', {
-            timeout: 20000
+            timeout: 15000
         });
 
-        // -------- DOUBLE CLICK SYSTEM --------
+        // ---------- DOUBLE FAST CLICK ----------
 
-        await submitBtn.click();
+        await submitBtn.click({ force: true });
 
-        await page.waitForTimeout(300);
+        await submitBtn.click({ force: true });
 
-        await submitBtn.click();
-
-        // -------- GET DOWNLOAD --------
+        // ---------- GET PDF ----------
 
         const download = await downloadPromise;
 
-        // -------- DIRECT STREAM (NO SAVEAS) --------
+        // ---------- DIRECT STREAM ----------
 
         const stream = await download.createReadStream();
-
-        // -------- SEND PDF --------
 
         res.setHeader(
             'Content-Disposition',
@@ -127,36 +139,29 @@ app.post('/download', async (req, res) => {
 
         stream.pipe(res);
 
-        console.log(`✅ PDF Sent: ${formNo}`);
-
-        // -------- AUTO CLOSE TAB --------
+        console.log(`✅ Done: ${formNo}`);
 
         stream.on('end', async () => {
             try {
                 await page.close();
-            } catch (e) {}
+            } catch {}
         });
 
-    } catch (error) {
+    } catch (err) {
 
-        console.log("❌ Error:", error.message);
+        console.log("❌", err.message);
 
-        if (page) {
-            try {
-                await page.close();
-            } catch (e) {}
-        }
+        try {
+            if (page) await page.close();
+        } catch {}
 
         res.send(`
-            <h3>❌ Admit Card nahi mila ya website slow hai</h3>
-            <p>${error.message}</p>
-            <a href="/">Wapas Try Karein</a>
+            <h3>❌ Error</h3>
+            <p>${err.message}</p>
         `);
     }
 });
 
-// ---------------- START SERVER ----------------
-
 app.listen(port, () => {
-    console.log(`🚀 Server running on port ${port}`);
+    console.log(`🔥 Server Running : ${port}`);
 });
