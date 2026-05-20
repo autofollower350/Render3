@@ -67,12 +67,12 @@ app.post('/download', async (req, res) => {
         await page.route('**/*.{png,jpg,jpeg,gif,css,woff2}', route => route.abort());
 
         const url = "https://erp.jnvuiums.in/(S(biolzjtwlrcfmzwwzgs5uj5n))/Exam/Pre_Exam/Exam_ForALL_AdmitCard.aspx#";
-        await page.goto(url, { waitUntil: 'commit', timeout: 3000 });
+        await page.goto(url, { waitUntil: 'commit', timeout: 30000 });
         
         await page.fill("#txtchallanNo", String(formNo));
         
         const submitBtn = page.locator("#btnGetResult");
-        const downloadPromise = page.waitForEvent('download', { timeout: 3000 });
+        const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
         
         await submitBtn.click();
         await page.waitForTimeout(500); 
