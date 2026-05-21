@@ -3,26 +3,236 @@
 <head>
     <title>JNVU Admit Card Portal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f3; text-align: center; padding: 50px 20px; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 450px; margin: 0 auto; }
-        h2 { color: #ff4b4b; margin-top: 0; }
-        input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center; }
-        button { width: 95%; padding: 12px; background: #ff4b4b; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { background: #e04343; }
-        .footer { margin-top: 20px; font-size: 12px; color: #777; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>🇮🇳 RajasthaniBoyz Portal</h2>
-        <p style="color:#666;">Apna JNVU Form Number dalo aur Admit Card download karo</p>
-        <form action="/download" method="POST">
-            <input type="text" name="form_no" placeholder="Enter Form / Challan Number" required><br>
-            <button type="submit">🚀 Get Admit Card & Data</button>
-        </form>
-        <div class="footer">Powered by Playwright & Express</div>
-    </div>
-</body>
-</html>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>  
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            
+            /* ---- 🌟 AAPKI GOOGLE DRIVE PIC KO DIRECT LINK MEIN BADAL KAR LAGAYA HAI 🌟 ---- */
+            background-image: url('https://lh3.googleusercontent.com/d/1HNdF9Kw0wAuz03ZGVGYTT5IRcr1Kb4jd'); 
+            
+            background-size: cover; /* Photo puri screen par fit ho jayegi */
+            background-position: center; /* Photo center mein rahegi */
+            background-repeat: no-repeat; /* Photo repeat nahi hogi */
+            background-attachment: fixed; /* Scroll karne par background wahin rahega */
+            
+            text-align: center; 
+            padding: 50px 20px; 
+            margin: 0; 
+        }  
+        
+        /* Card with Position Relative for Menu alignment */
+        .card { 
+            background: rgba(255, 255, 255, 0.90); /* Thoda transparent taaki background ki pic halki jhalak sake */
+            backdrop-filter: blur(8px); /* Background pic ko card ke piche halka sa blur dene ke liye (Sexy Look) */
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); /* Darker shadow taaki card pop-out hoke dikhe */
+            max-width: 450px; 
+            margin: 40px auto; 
+            position: relative; 
+        }  
+        
+        h2 { color: #ff4b4b; margin-top: 10px; }  
+        input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center; }  
+        
+        /* --- 3-Dot Menu Sexy Styling --- */
+        .menu-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 100;
+        }
+        .three-dot-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #666;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 50%;
+            transition: 0.2s;
+            width: auto; 
+            display: inline-block;
+        }
+        .three-dot-btn:hover {
+            background: #f0f0f0;
+            color: #222;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 35px;
+            right: 0;
+            background: white;
+            min-width: 160px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #eee;
+            text-align: left;
+        }
+        .dropdown-menu a {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .dropdown-menu a:hover {
+            background: #fdf2f2;
+            color: #ff4b4b;
+        }
+        .show { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Main Submit Button */
+        button[type="submit"] { 
+            width: 95%; padding: 14px; background: #ff4b4b; color: white; border: none; border-radius: 6px; 
+            font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.3s; 
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+        }  
+        button[type="submit"]:hover { background: #e04343; transform: translateY(-1px); }  
+        
+        button.loading-active {
+            background: linear-gradient(90deg, #ff4b4b, #ff7676, #ff4b4b);
+            background-size: 200% auto;
+            animation: moveGradient 1.5s linear infinite;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: none; width: 20px; height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            border-top-color: white; animation: spin 0.8s linear infinite;
+        }
+
+        /* --- Social Buttons Styling --- */
+        .social-container { margin-top: 25px; padding-top: 20px; border-top: 1px dashed #ddd; }
+        .social-title { font-size: 14px; color: #555; margin-bottom: 12px; font-weight: 600; }
+        .social-btn-wrapper { display: flex; gap: 10px; justify-content: center; width: 95%; margin: 0 auto; }
+        .social-btn {
+            flex: 1; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: bold; color: white;
+            text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            transition: 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .tg-btn { background: #0088cc; }
+        .tg-btn:hover { background: #0077b5; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3); }
+        .wa-btn { background: #25D366; }
+        .wa-btn:hover { background: #20ba5a; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes moveGradient { to { background-position: 200% center; } }
+        .footer { margin-top: 20px; font-size: 12px; color: #333; font-weight: 500; }  
+    </style>  
+</head>  
+<body>  
+    <div class="card">  
+        <div class="menu-container">
+            <button class="three-dot-btn" id="menuBtn" type="button">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="https://www.jnvuiu.in/" target="_blank"><i class="fa-solid fa-globe"></i> Official Website</a>
+                <a href="https://www.jnvuiu.in/syllabus.php" target="_blank"><i class="fa-solid fa-book"></i> Syllabus</a>
+                <a href="https://www.jnvuiu.in/results.php" target="_blank"><i class="fa-solid fa-graduation-cap"></i> Result Portal</a>
+                <a href="https://t.me/jnvu_alerts" target="_blank"><i class="fa-solid fa-headset"></i> Contact Admin</a>
+                <a href="https://api.whatsapp.com/send?text=Bhai%20JNVU%20ka%20Admit%20Card%20yahan%20se%20download%20karo%20fast!" target="_blank"><i class="fa-solid fa-share-nodes"></i> Share Link</a>
+            </div>
+        </div>
+
+        <h2>🇮🇳 RajasthaniBoyz Portal</h2>  
+        <p style="color:#666;">Apna JNVU Form Number dalo aur Admit Card download karo</p>  
+        
+        <form id="admitCardForm" action="/download" method="POST">  
+            <input type="text" name="form_no" placeholder="Enter Form / Challan Number" required><br>  
+            <button type="submit" id="submitBtn">
+                <div class="spinner" id="btnSpinner"></div>
+                <span id="btnText">🚀 Get Admit Card & Data</span>
+            </button>  
+        </form>  
+
+        <div class="social-container">
+            <div class="social-title">Latest Updates Ke Liye Join Karein 👇</div>
+            <div class="social-btn-wrapper">
+                <a href="https://t.me/jnvu_alerts" target="_blank" class="social-btn tg-btn">
+                    <i class="fa-brands fa-telegram" style="font-size: 18px;"></i> Telegram
+                </a>
+                <a href="https://whatsapp.com/channel/0029VavnBDzHVvTe5NHfoG2N" target="_blank" class="social-btn wa-btn">
+                    <i class="fa-brands fa-whatsapp" style="font-size: 18px;"></i> WhatsApp
+                </a>
+            </div>
+        </div>
+
+        <div class="footer">Powered by Playwright & Express</div>  
+    </div>  
+
+    <script>
+        // --- 3-Dot Menu JavaScript Logic ---
+        const menuBtn = document.getElementById('menuBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+
+        menuBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); 
+            dropdownMenu.classList.toggle('show');
+        });
+
+        window.addEventListener('click', function() {
+            if (dropdownMenu.classList.contains('show')) {
+                dropdownMenu.classList.remove('show');
+            }
+        });
+
+        // --- Submit Logic (16 Seconds) ---
+        document.getElementById('admitCardForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('btnSpinner');
+            const btnText = document.getElementById('btnText');
+
+            btn.disabled = true;
+            btn.classList.add('loading-active');
+            spinner.style.display = 'block';
+            
+            let timeLeft = 16;
+
+            const messages = [
+                "Connecting JNVU...",
+                "Bypassing Captcha..",
+                "Fetching Student DB.",
+                "Generating PDF.....",
+                "Ready to Launch! 🚀"
+            ];
+
+            btnText.innerText = `${messages[0]} (${timeLeft}s)`;
+
+            const interval = setInterval(() => {
+                timeLeft--;
+                
+                if (timeLeft >= 12) btnText.innerText = `${messages[0]} (${timeLeft}s)`;
+                else if (timeLeft >= 8) btnText.innerText = `${messages[1]} (${timeLeft}s)`;
+                else if (timeLeft >= 5) btnText.innerText = `${messages[2]} (${timeLeft}s)`;
+                else if (timeLeft >= 2) btnText.innerText = `${messages[3]} (${timeLeft}s)`;
+                else btnText.innerText = `${messages[4]} (${timeLeft}s)`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    
+                    setTimeout(() => {
+                        document.getElementById('admitCardForm').submit();
+                    }, 500);
+                }
+            }, 1000);
+        });
+    </script>
+</body>  
+</html>
